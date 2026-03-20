@@ -7,21 +7,18 @@ from pathlib import Path
 st.set_page_config(page_title="投资GPS仪表盘", layout="wide")
 st.title("🚀 投资GPS仪表盘 - 实物信用扩张主线")
 
-# ==================== 历史数据初始化 ====================
+# ==================== 会话状态 ====================
 if 'history' not in st.session_state:
     st.session_state.history = pd.DataFrame(columns=["日期", "总市值(万元)", "信号总分", "贝叶斯概率"])
+if 'portfolio' not in st.session_state:
+    st.session_state.portfolio = {"红利": 0.55, "黄金": 0.17, "油气": 0.28}
 
 # ==================== 当前组合概览 ====================
 st.subheader("📊 当前组合资产配置概览")
-col1, col2, col3, col4 = st.columns(4)
-with col1:
-    st.metric("515180 红利ETF", "55%", "底仓现金流")
-with col2:
-    st.metric("518850 黄金ETF", "17%", "避险对冲")
-with col3:
-    st.metric("561360 油气ETF", "28%", "进攻弹性")
-with col4:
-    st.metric("参考市值", "97.14万元", "3月19日")
+cols = st.columns(4)
+for i, (name, weight) in enumerate(st.session_state.portfolio.items()):
+    with cols[i]:
+        st.metric(name + "ETF", f"{int(weight*100)}%", "当前比例")
 
 # ==================== 5大信号 ====================
 st.sidebar.header("5大信号实时监测")
@@ -46,19 +43,32 @@ st.dataframe(pd.DataFrame(data), use_container_width=True)
 st.metric("总信号分", f"{total_score} / 100")
 st.metric("贝叶斯概率", f"{bayesian}%")
 
+# ==================== 动态比例建议 ====================
+st.subheader("🔄 动态比例建议")
+if bayesian >= 88:
+    suggested = {"红利": 0.52, "黄金": 0.15, "油气": 0.33}
+    st.success("信号极强 → 建议增加油气仓位")
+elif bayesian >= 82:
+    suggested = st.session_state.portfolio
+    st.info("信号中强 → 维持当前比例")
+else:
+    suggested = {"红利": 0.58, "黄金": 0.20, "油气": 0.22}
+    st.warning("信号减弱 → 建议减少油气仓位")
+
+if st.button("应用建议比例"):
+    st.session_state.portfolio = suggested
+    st.success("比例已更新！")
+    st.rerun()
+
 # ==================== 退出窗口提醒 ====================
 st.subheader("🚪 退出窗口提醒")
-col_exit1, col_exit2, col_exit3 = st.columns(3)
-with col_exit1:
-    st.write("**561360 油气**")
-    if oil < 70 and hormuz < 65 and futures < 60:
-        st.error("已进入退出窗口 → 建议分批减仓")
-    else:
-        st.success("尚未进入")
+if oil < 70 and hormuz < 65 and futures < 60:
+    st.error("油气已进入退出窗口 → 建议分批减仓")
+else:
+    st.success("尚未进入退出窗口")
 
 # ==================== 历史趋势图 & 数据管理 ====================
 st.subheader("📈 组合市值历史趋势")
-
 with st.expander("➕ 添加/修改历史数据"):
     col_d, col_v = st.columns(2)
     with col_d:
@@ -69,16 +79,13 @@ with st.expander("➕ 添加/修改历史数据"):
     if st.button("💾 保存历史数据"):
         try:
             history = st.session_state.history.copy()
-            # 删除同日期旧数据
             history = history[history["日期"] != str(input_date)]
-            
             new_row = pd.DataFrame({
                 "日期": [input_date],
                 "总市值(万元)": [input_value],
                 "信号总分": [total_score],
                 "贝叶斯概率": [bayesian]
             })
-            
             history = pd.concat([history, new_row], ignore_index=True)
             st.session_state.history = history.sort_values("日期")
             st.success(f"{input_date} 数据已保存")
@@ -86,18 +93,11 @@ with st.expander("➕ 添加/修改历史数据"):
         except Exception as e:
             st.error(f"保存失败: {e}")
 
-# 显示历史趋势图
 if not st.session_state.history.empty:
     history_sorted = st.session_state.history.sort_values("日期")
-    fig = px.line(history_sorted, x="日期", y="总市值(万元)", 
-                  title="组合市值历史趋势", markers=True)
+    fig = px.line(history_sorted, x="日期", y="总市值(万元)", title="组合市值历史趋势", markers=True)
     st.plotly_chart(fig, use_container_width=True)
-    
     st.dataframe(history_sorted, use_container_width=True)
-    st.download_button("📥 下载历史数据CSV", 
-                       history_sorted.to_csv(index=False).encode('utf-8'),
-                       "gps_history.csv")
-else:
-    st.info("暂无历史数据，请在上方添加")
+    st.download_button("📥 下载历史数据CSV", history_sorted.to_csv(index=False).encode('utf-8'), "gps_history.csv")
 
-st.caption("仪表盘 v9.1 | 已修复历史数据保存问题")
+st.caption("仪表盘 v9.3 | 已修复历史数据保存问题")
