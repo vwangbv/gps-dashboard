@@ -1,61 +1,71 @@
 import streamlit as st
 import pandas as pd
-import plotly.express as px
 from datetime import date
 
 st.set_page_config(page_title="投资GPS仪表盘", layout="wide")
 st.title("🚀 投资GPS仪表盘 - 实物信用扩张主线")
 
-# ================== 历史记录（自动保存） ==================
-if 'history' not in st.session_state:
-    st.session_state.history = pd.DataFrame(columns=["日期", "总市值", "累计回报"])
+# ==================== 当前组合资产配置概览 ====================
+st.subheader("📊 当前组合资产配置概览")
+col1, col2, col3, col4 = st.columns(4)
+with col1:
+    st.metric("515180 红利ETF", "55%", "底仓现金流")
+with col2:
+    st.metric("518850 黄金ETF", "17%", "避险对冲")
+with col3:
+    st.metric("561360 油气ETF", "28%", "进攻弹性")
+with col4:
+    st.metric("总市值", "97.14万元", "3月19日收盘参考")
 
-# ================== 侧边栏输入 ==================
-st.sidebar.header("每日更新")
-date_today = st.sidebar.date_input("日期", date.today())
-current_value = st.sidebar.number_input("今日组合总市值（元）", value=982300, step=1000)
+# ==================== 侧边栏 - 5大信号实时输入 ====================
+st.sidebar.header("5大信号实时监测")
+oil = st.sidebar.slider("油价强度 (Brent)", 0, 100, 91, help="越高越利好")
+ppi = st.sidebar.slider("PPI强度", 0, 100, 78)
+hormuz = st.sidebar.slider("霍尔木兹紧张度", 0, 100, 82)
+copper = st.sidebar.slider("铜价强度", 0, 100, 72)
+futures = st.sidebar.slider("期货曲线强度", 0, 100, 85)
 
-# 5大信号打分
-st.sidebar.subheader("5大信号打分")
-oil = st.sidebar.slider("油价信号", 0, 100, 93)
-ppi = st.sidebar.slider("PPI信号", 0, 100, 79)
-hormuz = st.sidebar.slider("霍尔木兹信号", 0, 100, 84)
-copper = st.sidebar.slider("铜价信号", 0, 100, 69)
-futures = st.sidebar.slider("期货曲线信号", 0, 100, 87)
-
+# 计算
 total_score = round(oil*0.25 + ppi*0.20 + hormuz*0.25 + copper*0.15 + futures*0.15, 1)
-bayesian = round(total_score * 0.85 + 86 * 0.15, 1)
+bayesian = round(total_score * 0.85 + 80 * 0.15, 1)
 
-# ================== 计算 ==================
-total_return = round((current_value - 1000000) / 1000000 * 100, 2)
+# ==================== 5大信号表 ====================
+st.subheader("5大信号表")
+data = {
+    "信号": ["油价", "PPI", "霍尔木兹", "铜价", "期货曲线"],
+    "强度评分": [oil, ppi, hormuz, copper, futures],
+    "权重": ["25%", "20%", "25%", "15%", "15%"]
+}
+df = pd.DataFrame(data)
+st.dataframe(df, use_container_width=True)
 
-# 添加到历史记录
-new_row = pd.DataFrame({"日期": [date_today], "总市值": [current_value], "累计回报": [total_return]})
-st.session_state.history = pd.concat([st.session_state.history, new_row], ignore_index=True)
+st.metric("总信号分", f"{total_score} / 500")
+st.metric("贝叶斯后验概率", f"{bayesian}%（实物信用扩张主线）")
 
-# ================== 主页面展示 ==================
-col1, col2, col3 = st.columns(3)
-col1.metric("组合总市值", f"{current_value:,} 元", f"{total_return:+.2f}%")
-col2.metric("贝叶斯后验概率", f"{bayesian}%", "实物信用扩张")
-col3.metric("5大信号总分", f"{total_score}/100")
-
-# 历史曲线图
-if not st.session_state.history.empty:
-    fig = px.line(st.session_state.history, x="日期", y="总市值", 
-                  title="组合市值历史走势", markers=True)
-    st.plotly_chart(fig, use_container_width=True)
-
-# 历史记录表
-st.subheader("📈 历史记录")
-st.dataframe(st.session_state.history.sort_values("日期", ascending=False), use_container_width=True)
-
-# 应然建议
-st.subheader("🧭 今日应然建议")
-if bayesian >= 85:
-    st.success("**信号极强** → 可执行小幅加仓油气")
-elif bayesian >= 75:
-    st.info("**信号较强** → 继续观察，维持当前比例")
+# ==================== 应然建议 ====================
+st.subheader("应然建议")
+if bayesian >= 88:
+    st.success("**信号极强** → 可小幅加仓油气（不超过2%）")
+elif bayesian >= 82:
+    st.info("**信号中强** → 维持当前比例，继续观察")
 else:
-    st.warning("**信号偏弱** → 防守优先")
+    st.warning("**信号减弱** → 考虑逐步减仓油气，保护利润")
 
-st.caption("投资GPS外挂 v6.0 | 历史曲线已添加 | 每天填数据即可自动记录")
+# ==================== 今日市值更新工具 ====================
+st.subheader("今日市值更新工具")
+st.caption("输入今天三大标的实际场内涨跌幅，即可实时计算最新市值")
+col_a, col_b, col_c = st.columns(3)
+with col_a:
+    red = st.number_input("515180 今日涨跌幅 (%)", value=-0.5, format="%.2f")
+with col_b:
+    gold = st.number_input("518850 今日涨跌幅 (%)", value=-1.0, format="%.2f")
+with col_c:
+    oilgas = st.number_input("561360 今日涨跌幅 (%)", value=0.5, format="%.2f")
+
+if st.button("计算今日市值"):
+    prev = 97.1365
+    new_value = prev * (1 + red/100*0.55 + gold/100*0.17 + oilgas/100*0.28)
+    st.success(f"**今日收盘市值：{new_value:.4f} 万元**")
+    st.info(f"单日盈亏：{(new_value - prev):.4f} 万元")
+
+st.caption("仪表盘 v6.2 | 实物信用扩张主线 | 按你的节奏更新")
